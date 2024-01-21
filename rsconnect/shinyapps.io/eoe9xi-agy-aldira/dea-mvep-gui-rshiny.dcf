@@ -1,0 +1,12 @@
+name: dea-mvep-gui-rshiny
+title: dea-mvep-gui-rshiny
+username: eoe9xi-agy-aldira
+account: eoe9xi-agy-aldira
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 10982272
+bundleId: 8166921
+url: https://eoe9xi-agy-aldira.shinyapps.io/dea-mvep-gui-rshiny/
+version: 1
+asMultiple: FALSE
+asStatic: FALSE

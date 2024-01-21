@@ -1,3 +1,7 @@
+##########         ########## 
+########## LIBRARY ##########
+##########         ##########
+
 library(shiny)
 library(shinythemes)
 library(mvtnorm)
@@ -6,25 +10,26 @@ library(readr)
 library(DT)
 library(data.table)
 library(dplyr)
+library(rsconnect)
 
-# UI
+##########.   ############
+########## UI ############
+##########.   ############
+
 ui <- fluidPage(
   theme = shinytheme("sandstone"),
-  titlePanel("DEA-MVEP with Short-Selling Constraints"),
+  titlePanel("DEA-MVEP without Short-Selling"),
   navbarPage("by: Agy Aldira",
-             
              tabPanel("DEA: Input Data",
                       sidebarLayout(
                         sidebarPanel(
                           fileInput("file1", "Upload CSV File:", accept = c(".csv")),
-                          # Tambahkan elemen input DEA di sini sesuai kebutuhan
                           uiOutput("input_select"),
                           uiOutput("output_select"),
                         ),
                         mainPanel(
-                          # Tambahkan elemen output untuk hasil DEA di sini
                           verbatimTextOutput("dea_result"),
-                          DTOutput("uploaded_data")  # Added output for displaying uploaded data
+                          DTOutput("uploaded_data")
                         )
                       )
              ),
@@ -49,24 +54,17 @@ ui <- fluidPage(
                      label = "Select the orientation",
                      choices = c("Input"="input", "Output"="output")
                    ),
-                   
                    shiny::tags$h3("DEA Summary"),
                    shiny::verbatimTextOutput("summary"),
-                   
                 ),
-                    
                  shiny::mainPanel(
                    shinycssloaders::withSpinner(DT::dataTableOutput("eff_results1"), color = "#324C63"),
-                   
-                   
-            
-                  
                    shiny::helpText("Click on the download button to get a csv file of the results"),
                    shiny::downloadButton(outputId = "dbtn1", label = "download") 
                  )
                 )
                ),
-             
+      
              tabPanel("MVEP: Input Data",
                       sidebarLayout(
                         sidebarPanel(
@@ -79,6 +77,7 @@ ui <- fluidPage(
                         )
                       )
              ),
+             
              tabPanel("MVEP: Plot Return",
                       sidebarLayout(
                         sidebarPanel(
@@ -89,6 +88,7 @@ ui <- fluidPage(
                         mainPanel(plotOutput("plot"), verbatimTextOutput("FluktuasiHarga"))
                       )
              ),
+             
              tabPanel("MVEP: Normality Test",
                       mainPanel(
                         tabsetPanel(type = "pills", id = "navbar",
@@ -103,6 +103,7 @@ ui <- fluidPage(
                         )
                       )
              ),
+             
              tabPanel("MVEP: Stock Portofolio",
                       mainPanel(
                         tabsetPanel(type = "pills", id = "navbar",
@@ -111,10 +112,10 @@ ui <- fluidPage(
                                              tags$b("Conclusion"),
                                              verbatimTextOutput("maksud")
                                     ),
-                                    
                         )
                       )
              ),
+             
              tabPanel("VaR: Portfolio Risk",
                       sidebarLayout(
                         sidebarPanel(
@@ -145,7 +146,6 @@ ui <- fluidPage(
 ################        #################
 
 server <- function(input, output, session){
-  # Read data for DEA analysis
   data <- reactive({
     req(input$file1)
     data <- data.table::fread(input$file1$datapath)
@@ -155,7 +155,6 @@ server <- function(input, output, session){
       inputId = "ID_choose",
       choices = names(data)
     )
-    
     return(data)
   })
   
@@ -211,8 +210,6 @@ server <- function(input, output, session){
       input$ID_choose
     )
     
-    
-    # Gantilah bagian ini dengan pemanggilan fungsi DEA Anda
     df <- data()
     r_eff2 <- scores()
     id <- df %>% dplyr::select(input$ID_choose)
@@ -226,9 +223,7 @@ server <- function(input, output, session){
     )
     return(results)
   })
-  
-  
-  # Menampilkan hasil DEA
+
   output$eff_results1 <- DT::renderDataTable({
     DT::datatable(dea_results(), rownames = FALSE, class = "compact") %>% 
       DT::formatStyle(
@@ -237,8 +232,7 @@ server <- function(input, output, session){
         backgroundColor = DT::styleEqual(1, 'lightgreen')
       )
   })
-  
-  # Downloading Efficiency Scores -------------------------------------------
+
   output$dbtn1 <- shiny::downloadHandler(
     filename = function() {
       paste('efficiency-', Sys.Date(), '.csv', sep = '')
@@ -260,19 +254,14 @@ server <- function(input, output, session){
     print("Debug Information:")
     print(class(data()))
     print(class(dea_results()))
-    
-    # Gantilah bagian ini dengan pemanggilan fungsi DEA Anda
+
     r_eff2 <- dea_results()
     print(class(r_eff2))
     print(str(r_eff2))
-    # Ubah atau tambahkan proses lain sesuai kebutuhan
-    # ...
     print("Summary Information:")
     summary(r_eff2)
     return("Summary Printed Successfully!")
   })
-  
-######## MVEP  
   
   output$data_display_selector <- renderUI({
     selectInput("data_display", "Choose Display", choices = c("datatable", "renderTable"), selected = "datatable")
@@ -308,10 +297,7 @@ server <- function(input, output, session){
     summary(datapakai)
   })
   
-  # Tambahkan input untuk memilih tampilan
   selectInput("data_display", "Choose Display", choices = c("datatable", "renderTable"), selected = "datatable")
-  
-  # Gantilah output$tabel dengan kode berikut
   output$tabel <- renderUI({
     data_display <- input$data_display
     if (data_display == "datatable") {
@@ -341,11 +327,7 @@ server <- function(input, output, session){
     datainput <- input$data
     if (!is.null(datainput)) {
       datapakai <- read.csv(datainput$datapath, header = TRUE)
-      
-      # Ambil nama kolom dari data
       kolom_names <- colnames(datapakai)
-      
-      # Update label pada radioButtons untuk memilih return saham
       updateRadioButtons(
         session,
         "Return",
@@ -356,20 +338,15 @@ server <- function(input, output, session){
     }
   })
   
-  
   output$plot <- renderPlot({
     datainput <- input$data
     if (is.null(datainput)) {
       return()
     }
     datapakai <- read.csv(datainput$datapath, header = TRUE)
-    
     kolom <- as.numeric(input$Return)
     nilaireturn <- datapakai[, kolom]
-    
-    # Ambil nama kolom yang dipilih
     nama_kolom <- names(datapakai)[kolom]
-    
     plot(nilaireturn, type = input$tipe, col = input$warna, main = paste("Stock Return -", nama_kolom))
   })
   
@@ -448,15 +425,14 @@ so the data does not meet the assumptions for forming a Mean-Variance model port
     datapakai <- read.csv(datainput$datapath, header = TRUE)
     
     matrixCov <- function(X) {
-      n <- dim(X)[1]  # jumlah baris
-      ones <- rep(1, n)  # vektor satuan
+      n <- dim(X)[1]
+      ones <- rep(1, n)
       C <- diag(1, n) - ones %*% t(ones) / n
       Xc <- C %*% X
       matCov <- t(Xc) %*% Xc / (n - 1)
       return(matCov)
     }
     
-    # Assuming all columns in datapakai are assets
     mat.data <- as.matrix(datapakai)
     sigma.mat <- matrixCov(mat.data)
     D.mat <- 2 * sigma.mat
@@ -466,39 +442,32 @@ so the data does not meet the assumptions for forming a Mean-Variance model port
     
     qp.out <- solve.QP(Dmat = D.mat, dvec = d.vec, Amat = A.mat, bvec = b.vec, meq = 1)
     Percentage <- 100 * t(t(qp.out$solution))
-    
-    # Combine Aset and Presentase vectors into a data frame
+
     result_df <- data.frame(Asset = colnames(datapakai), Percentage)
     return(result_df)
   })
-  
-  
-  # ...
-  
+
   output$maksud <- renderPrint({
     datainput <- input$data
     if (is.null(datainput)) {
       return()
     }
     datapakai <- read.csv(datainput$datapath, header = TRUE)
-    
-    # Ganti nama Aset dengan nama kolom pada baris pertama data
+
     aset_names <- colnames(datapakai)
     output_names <- paste("aset", seq_along(aset_names), sep = " ")
     colnames(datapakai) <- output_names
     
     matrixCov <- function(X) {
-      n <- dim(X)[1]  # jumlah baris
-      ones <- rep(1, n)  # vektor satuan
+      n <- dim(X)[1]
+      ones <- rep(1, n)
       C <- diag(1, n) - ones %*% t(ones) / n
       Xc <- C %*% X
       matCov <- t(Xc) %*% Xc / (n - 1)
       return(matCov)
     }
     
-    # Ambil semua kolom untuk analisis
     mat.data <- as.matrix(datapakai)
-    
     sigma.mat <- matrixCov(mat.data)
     D.mat <- 2 * sigma.mat
     d.vec <- rep(0, ncol(mat.data))
@@ -513,18 +482,15 @@ so the data does not meet the assumptions for forming a Mean-Variance model port
       cat(Percentage[i, 1], "% on", aset_names[i], ",\n")
     }
   })
-  
-  # ...
-  
-  
+
   observeEvent(input$hitung,{
     output$var1<-renderPrint({
       datainput=input$data
       if (is.null(datainput)){return()}
       datapakai=read.csv(datainput$datapath,header = TRUE)
       matrixCov <- function(X){ 
-        n <- dim(X)[1] # jumlah baris 
-        ones <- rep(1,n) # vektor satuan 
+        n <- dim(X)[1]
+        ones <- rep(1,n) 
         C <- diag(1,n) - ones %*% t(ones) / n 
         Xc <- C %*% X 
         matCov <- t(Xc) %*% Xc / (n-1) 
@@ -558,8 +524,8 @@ so the data does not meet the assumptions for forming a Mean-Variance model port
       if (is.null(datainput)){return()}
       datapakai=read.csv(datainput$datapath,header = TRUE)
       matrixCov <- function(X){ 
-        n <- dim(X)[1] # jumlah baris 
-        ones <- rep(1,n) # vektor satuan 
+        n <- dim(X)[1] 
+        ones <- rep(1,n)
         C <- diag(1,n) - ones %*% t(ones) / n 
         Xc <- C %*% X 
         matCov <- t(Xc) %*% Xc / (n-1) 
@@ -591,8 +557,8 @@ so the data does not meet the assumptions for forming a Mean-Variance model port
       if (is.null(datainput))return()
       datapakai=read.csv(datainput$datapath,header = TRUE)
       matrixCov <- function(X){ 
-        n <- dim(X)[1] # jumlah baris 
-        ones <- rep(1,n) # vektor satuan 
+        n <- dim(X)[1] 
+        ones <- rep(1,n)
         C <- diag(1,n) - ones %*% t(ones) / n
         Xc <- C %*% X 
         matCov <- t(Xc) %*% Xc / (n-1) 
@@ -627,7 +593,6 @@ the maximum possible loss risk is Rp",VaR_HS,"or",VaR_persen,"%")
     })
   })
   
-  
   read_data <- function(file_path) {
     if (grepl("\\.csv$", file_path, ignore.case = TRUE)) {
       return(read.csv(file_path))
@@ -638,5 +603,4 @@ the maximum possible loss risk is Rp",VaR_HS,"or",VaR_persen,"%")
     }
   }}
 
-#Running App
 shinyApp(ui=ui,server=server)
